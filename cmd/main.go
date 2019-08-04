@@ -1,19 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
-	"bytes"
+	"github.com/streadway/amqp"
 	"strconv"
 	"sync"
-	"github.com/streadway/amqp"
 	"time"
 )
 
 const (
 	//mqurl ="amqp://guest:guest@172.16.204.11:5672"
 	mqurl = "amqp://guest:guest@10.130.121.134:30773"
-	workerNum = 10
 	factor = 20
 )
 
@@ -30,11 +29,14 @@ func main() {
 	flag.IntVar(&consumerCount, "consumerCount", 1000, "")
 	var prodNum int
 	flag.IntVar(&prodNum, "prodNum", 10000, "")
+	var intervalTime int
+	flag.IntVar(&intervalTime, "intervalTime", 500, "")
 
 	flag.Parse()
 	fmt.Println("queueCount:", queueCount)
 	fmt.Println("consumerCount:", consumerCount)
 	fmt.Println("prodNum:", prodNum)
+	fmt.Println("intervalTime:", intervalTime)
 
 	queues := make([]string, queueCount)
 	var waitGroutp = sync.WaitGroup{}
@@ -71,26 +73,38 @@ func main() {
 		go func(i int) {
 			var conn *amqp.Connection
 			var channel *amqp.Channel
-			for {
-				conn, _ = amqp.Dial(mqurl)
-				if conn != nil {
-					break
-				}
+			conn, err := amqp.Dial(mqurl)
+			if err != nil {
+				fmt.Println(err)
+				return
 			}
-			for {
-				channel, _ = conn.Channel()
-				if channel != nil {
-					break
-				}
+			channel, err = conn.Channel()
+			if err != nil {
+				fmt.Println(err)
+				return
 			}
 			k := i % queueCount
 			for {
 				fmt.Println("publisher queue id: " + strconv.Itoa(k) + "  " + queues[k] )
-				msgContent := "test message"
-				channel.Publish("", queues[k], false, false, amqp.Publishing{
+				msgContent := "test messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest messagetest message"
+				err = channel.Publish("", queues[k], false, false, amqp.Publishing{
 					ContentType: "text/plain",
 					Body:        []byte(msgContent),
 				})
+				if err != nil {
+					fmt.Println(err)
+					conn, err := amqp.Dial(mqurl)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+					channel, err = conn.Channel()
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+				}
+				time.Sleep(time.Duration(intervalTime)*time.Millisecond)
 			}
 		}(i)
 	}
@@ -101,26 +115,24 @@ func main() {
 			k := i % queueCount
 			var conn *amqp.Connection
 			var channel *amqp.Channel
-			for {
-				conn, _ = amqp.Dial(mqurl)
-				if conn != nil {
-					break
-				}
+			conn, err := amqp.Dial(mqurl)
+			if err != nil {
+				fmt.Println(err)
+				return
 			}
-			for {
-				channel, _ = conn.Channel()
-				if channel != nil {
-					break
-				}
+			channel, err = conn.Channel()
+			if err != nil {
+				fmt.Println(err)
+				return
 			}
 			queueName := "queue" +  strconv.Itoa(k)
 			fmt.Println("consumer queue id: " + strconv.Itoa(k) + "  " + queueName )
-			msgs, _ := channel.Consume(queueName, "", true, false, false, false, nil)
+			msgs, _ := channel.Consume(queueName, "", false, false, false, false, nil)
 			go func() {
 				for d := range msgs {
 					s := BytesToString(&(d.Body))
+					d.Ack(false)
 					fmt.Printf("receve msg is :%s\n", *s)
-					time.Sleep(time.Duration(1)*time.Second)
 				}
 			}()
 		}(i)
